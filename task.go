@@ -1,11 +1,27 @@
 package yougile_api_wrapp
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
+
+const taskPath = "tasks"
+
+type Pagination struct {
+	Count  int  `json:"count"`
+	Limit  int  `json:"limit"`
+	Offset int  `json:"offset"`
+	Next   bool `json:"next"`
+}
+type TaskListResponse struct {
+	Pagination Pagination `json:"paging"`
+	Content    []*Task    `json:"content"`
+}
 
 type Deadline struct {
 	Deadline  time.Duration `json:"deadline"`
-	StartDate time.Duration `json:"startDate"`
-	WithTime  bool          `json:"withTime"`
+	StartDate time.Duration `json:"startDate,omitempty"`
+	WithTime  bool          `json:"withTime,omitempty"`
 }
 
 type TimeTracking struct {
@@ -13,8 +29,8 @@ type TimeTracking struct {
 	Work int64 `json:"work"`
 }
 type Checklists struct {
-	Title string       `json:"title"`
-	Items []CheckItems `json:"items"`
+	Title string       `json:"title,omitempty"`
+	Items []CheckItems `json:"items,omitempty"`
 }
 
 type CheckItems struct {
@@ -32,17 +48,64 @@ type Timer struct {
 }
 
 type Task struct {
-	Column       *Column
-	Title        string            `json:"title"`
-	ColumnID     string            `json:"column_id"`
-	Description  string            `json:"description"`
-	Archived     bool              `json:"archived"`
-	Completed    bool              `json:"completed"`
-	Subtasks     []string          `json:"subtasks"`
-	Assigned     []string          `json:"assigned"`
-	Deadline     Deadline          `json:"deadline"`
-	TimeTracking TimeTracking      `json:"timeTracking"`
-	Checklists   Checklists        `json:"checklists"`
-	Stickers     map[string]string `json:"stickers"`
-	Stopwatch    Stopwatch         `json:"stopwatch"`
+	client       *YouGileClient
+	Id           string            `json:"id,omitempty"`
+	Title        string            `json:"title,omitempty"`
+	ColumnID     string            `json:"columnId,omitempty"`
+	Description  string            `json:"description,omitempty"`
+	Archived     bool              `json:"archived,omitempty"`
+	Completed    bool              `json:"completed,omitempty"`
+	Subtasks     []string          `json:"subtasks,omitempty"`
+	Assigned     []string          `json:"assigned,omitempty"`
+	Deadline     *Deadline         `json:"deadline,omitempty"`
+	TimeTracking *TimeTracking     `json:"timeTracking,omitempty"`
+	Checklists   *Checklists       `json:"checklists,omitempty"`
+	Stickers     map[string]string `json:"stickers,omitempty"`
+	Stopwatch    *Stopwatch        `json:"stopwatch,omitempty"`
+	Deleted      bool              `json:"deleted,omitempty"`
 }
+
+func (c *YouGileClient) CreateTask(task *Task, extraKwargs ...Arguments) error {
+	kwargs := Arguments{}
+	kwargs.flatten(extraKwargs)
+	err := c.Post(taskPath, kwargs, &task)
+	if err != nil {
+		return fmt.Errorf("error creating task: %w", err)
+	}
+	return err
+}
+
+func (c *YouGileClient) DeleteMultiTask(tasks []*Task, extraKwargs ...Arguments) error { // TODO: подумать как лучше реализовать мультиудаление
+	for _, v := range tasks {
+		kwargs := Arguments{}
+		kwargs.flatten(extraKwargs)
+		pathWithId := fmt.Sprintf("%s/%s", taskPath, v.Id)
+		t := &Task{Deleted: true}
+		err := c.Put(pathWithId, kwargs, &t)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Column) GetTaskList() (tasks *TaskListResponse, err error) {
+	var kwargs Arguments
+	if c.Id != "" {
+		kwargs = Arguments{
+			"columnId": c.Id,
+		}
+	} else {
+		return nil, fmt.Errorf("columnId is required")
+	}
+	var response TaskListResponse
+	err = c.Get(taskPath, kwargs, &response)
+	if err != nil {
+		return nil, err
+	}
+	return &response, err
+}
+
+//func (c *YouGileClient) DeleteTask(task *Task) error {
+//
+//}
