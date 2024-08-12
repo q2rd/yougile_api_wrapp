@@ -66,7 +66,7 @@ type Task struct {
 }
 
 func (c *YouGileClient) CreateTask(task *Task, extraKwargs ...Arguments) error {
-	kwargs := Arguments{}
+	kwargs := Defaults()
 	kwargs.flatten(extraKwargs)
 	err := c.Post(taskPath, kwargs, &task)
 	if err != nil {
@@ -77,7 +77,7 @@ func (c *YouGileClient) CreateTask(task *Task, extraKwargs ...Arguments) error {
 
 func (c *YouGileClient) DeleteMultiTask(tasks []*Task, extraKwargs ...Arguments) error { // TODO: подумать как лучше реализовать мультиудаление
 	for _, v := range tasks {
-		kwargs := Arguments{}
+		kwargs := Defaults()
 		kwargs.flatten(extraKwargs)
 		pathWithId := fmt.Sprintf("%s/%s", taskPath, v.Id)
 		t := &Task{Deleted: true}
@@ -106,6 +106,13 @@ func (c *Column) GetTaskList() (tasks *TaskListResponse, err error) {
 	return &response, err
 }
 
-//func (c *YouGileClient) DeleteTask(task *Task) error {
-//
-//}
+func (c *YouGileClient) DeleteTask(task *Task) error {
+	kwargs := Defaults()
+	pathWithId := fmt.Sprintf("%s/%s", taskPath, task.Id)
+	t := &Task{Deleted: true}
+	err := c.Put(pathWithId, kwargs, &t)
+	if err != nil {
+		return err // TODO логировние
+	}
+	return err
+}
